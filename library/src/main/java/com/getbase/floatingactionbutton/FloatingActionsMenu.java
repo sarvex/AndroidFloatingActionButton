@@ -1,5 +1,7 @@
 package com.getbase.floatingactionbutton;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
@@ -183,6 +185,7 @@ public class FloatingActionsMenu extends ViewGroup {
     });
 
     addView(mAddButton, super.generateDefaultLayoutParams());
+    mButtonsCount++;
   }
 
   public void addButton(FloatingActionButton button) {
@@ -197,6 +200,7 @@ public class FloatingActionsMenu extends ViewGroup {
   public void removeButton(FloatingActionButton button) {
     removeView(button.getLabelView());
     removeView(button);
+    button.setTag(R.id.fab_label, null);
     mButtonsCount--;
   }
 
@@ -252,12 +256,12 @@ public class FloatingActionsMenu extends ViewGroup {
     switch (mExpandDirection) {
     case EXPAND_UP:
     case EXPAND_DOWN:
-      height += mButtonSpacing * (getChildCount() - 1);
+      height += mButtonSpacing * (mButtonsCount - 1);
       height = adjustForOvershoot(height);
       break;
     case EXPAND_LEFT:
     case EXPAND_RIGHT:
-      width += mButtonSpacing * (getChildCount() - 1);
+      width += mButtonSpacing * (mButtonsCount - 1);
       width = adjustForOvershoot(width);
       break;
     }
@@ -467,12 +471,29 @@ public class FloatingActionsMenu extends ViewGroup {
 
       // Now that the animations have targets, set them to be played
       if (!animationsSetToPlay) {
+        addLayerTypeListener(mExpandDir, view);
+        addLayerTypeListener(mCollapseDir, view);
+
         mCollapseAnimation.play(mCollapseAlpha);
         mCollapseAnimation.play(mCollapseDir);
         mExpandAnimation.play(mExpandAlpha);
         mExpandAnimation.play(mExpandDir);
         animationsSetToPlay = true;
       }
+    }
+
+    private void addLayerTypeListener(Animator animator, final View view) {
+      animator.addListener(new AnimatorListenerAdapter() {
+        @Override
+        public void onAnimationEnd(Animator animation) {
+          view.setLayerType(LAYER_TYPE_NONE, null);
+        }
+
+        @Override
+        public void onAnimationStart(Animator animation) {
+          view.setLayerType(LAYER_TYPE_HARDWARE, null);
+        }
+      });
     }
   }
 
@@ -508,9 +529,18 @@ public class FloatingActionsMenu extends ViewGroup {
   }
 
   public void collapse() {
+    collapse(false);
+  }
+
+  public void collapseImmediately() {
+    collapse(true);
+  }
+
+  private void collapse(boolean immediately) {
     if (mExpanded) {
       mExpanded = false;
       mTouchDelegateGroup.setEnabled(false);
+      mCollapseAnimation.setDuration(immediately ? 0 : ANIMATION_DURATION);
       mCollapseAnimation.start();
       mExpandAnimation.cancel();
 
@@ -543,6 +573,13 @@ public class FloatingActionsMenu extends ViewGroup {
 
   public boolean isExpanded() {
     return mExpanded;
+  }
+
+  @Override
+  public void setEnabled(boolean enabled) {
+    super.setEnabled(enabled);
+
+    mAddButton.setEnabled(enabled);
   }
 
   @Override
